@@ -16,6 +16,39 @@
   body {
     @apply font-body bg-cream-100 text-gray-800 antialiased;
   }
+
+  /* Fixed header styles - not affected by font size changes */
+  .header-fixed-text {
+    font-size: 16px !important;
+  }
+
+  .header-fixed-title {
+    font-size: 1.25rem !important;
+  }
+
+  @media (min-width: 768px) {
+    .header-fixed-title {
+      font-size: 1.5rem !important;
+    }
+  }
+
+  .header-fixed-subtitle {
+    font-size: 0.875rem !important;
+  }
+
+  @media (min-width: 768px) {
+    .header-fixed-subtitle {
+      font-size: 1rem !important;
+    }
+  }
+
+  .header-fixed-nav {
+    font-size: 0.75rem !important;
+  }
+
+  .header-fixed-nav-cn {
+    font-size: 10px !important;
+  }
 }
 
 @layer components {
@@ -70,6 +103,7 @@
   /* Mass section styles */
   .mass-section {
     @apply card p-5 md:p-6 mb-5 border-l-4 border-gold-500;
+    scroll-margin-top: 160px; /* Account for sticky header */
   }
 
   .speaker-label {

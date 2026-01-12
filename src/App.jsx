@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { 
+import {
   BookOpen, Quote, PenTool, ChevronUp, Plus, Minus, Eye, EyeOff,
-  Menu, X, Settings, ChevronRight, Home, BookMarked, Heart
+  Menu, X, Settings, ChevronRight, Home, BookMarked, Heart, Save, Loader2
 } from 'lucide-react';
 import { massData } from './data/massData';
-import { getQuoteOfTheDay, getRecentQuotes } from './data/quotesData';
+import { getQuoteOfTheDay, getSingaporeDateDisplay } from './data/quotesData';
 import { getAllReflections, formatReflectionDate } from './data/reflectionsData';
+import { addReflection, getReflections, isFirebaseConfigured } from './firebase';
 
 function App() {
   const [activeTab, setActiveTab] = useState('mass');
@@ -39,7 +40,16 @@ function App() {
   const scrollToSection = (sectionId) => {
     const element = document.getElementById(sectionId);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Get the header height to offset the scroll position
+      const header = document.querySelector('header');
+      const headerHeight = header ? header.offsetHeight : 0;
+      const elementPosition = element.getBoundingClientRect().top + window.scrollY;
+      const offsetPosition = elementPosition - headerHeight - 16; // 16px extra padding
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
       setMenuOpen(false);
     }
   };
@@ -65,10 +75,10 @@ function App() {
             </button>
             
             <div className="text-center flex-1">
-              <h1 className="font-display text-xl md:text-2xl font-semibold tracking-wide">
+              <h1 className="font-display header-fixed-title font-semibold tracking-wide">
                 Gloria in Excelsis Deo
               </h1>
-              <p className="font-chinese text-gold-500 text-sm md:text-base mt-0.5">
+              <p className="font-chinese text-gold-500 header-fixed-subtitle mt-0.5">
                 天主在天受光荣
               </p>
             </div>
@@ -84,18 +94,18 @@ function App() {
 
           {/* Settings Dropdown */}
           {settingsOpen && (
-            <div className="mt-4 p-4 bg-navy-800/80 backdrop-blur rounded-xl border border-white/10 animate-slide-down">
+            <div className="mt-4 p-4 bg-navy-800/80 backdrop-blur rounded-xl border border-white/10 animate-slide-down header-fixed-text">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm text-cream-200">Font Size</span>
                 <div className="flex items-center gap-3">
-                  <button 
+                  <button
                     onClick={() => setFontSize(Math.max(12, fontSize - 2))}
                     className="w-8 h-8 rounded-full border-2 border-gold-500 text-gold-500 flex items-center justify-center hover:bg-gold-500 hover:text-navy-900 transition-colors"
                   >
                     <Minus size={16} />
                   </button>
                   <span className="w-12 text-center font-medium">{fontSize}px</span>
-                  <button 
+                  <button
                     onClick={() => setFontSize(Math.min(24, fontSize + 2))}
                     className="w-8 h-8 rounded-full border-2 border-gold-500 text-gold-500 flex items-center justify-center hover:bg-gold-500 hover:text-navy-900 transition-colors"
                   >
@@ -105,7 +115,7 @@ function App() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-cream-200">Show Pinyin</span>
-                <button 
+                <button
                   onClick={() => setShowPinyin(!showPinyin)}
                   className={`w-12 h-7 rounded-full transition-colors relative ${showPinyin ? 'bg-gold-500' : 'bg-gray-600'}`}
                 >
@@ -129,8 +139,8 @@ function App() {
               className={`nav-tab ${activeTab === id ? 'active' : ''}`}
             >
               <Icon size={18} />
-              <span className="text-xs">{label}</span>
-              <span className="text-[10px] font-chinese opacity-70">{labelCn}</span>
+              <span className="header-fixed-nav">{label}</span>
+              <span className="header-fixed-nav-cn font-chinese opacity-70">{labelCn}</span>
             </button>
           ))}
         </nav>
@@ -318,14 +328,18 @@ function MassTab({ showPinyin, scrollToSection }) {
 // Quotes Tab
 function QuotesTab() {
   const todayQuote = getQuoteOfTheDay();
-  const recentQuotes = getRecentQuotes(5);
-  const today = new Date();
+  const dateDisplay = getSingaporeDateDisplay();
 
   return (
     <div className="animate-fade-in space-y-6">
+      <div className="text-center mb-4">
+        <h2 className="font-display text-2xl text-navy-900 mb-2">Quote of the Day</h2>
+        <p className="text-gray-500 text-sm">Refreshes daily at 12am Singapore time</p>
+      </div>
+
       <div className="quote-card">
         <p className="text-xs uppercase tracking-widest text-gold-300 mb-4 relative z-10">
-          Quote of the Day • {today.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+          {dateDisplay}
         </p>
         <p className="font-display text-xl md:text-2xl font-medium leading-relaxed mb-6 relative z-10">
           "{todayQuote.text}"
@@ -335,32 +349,101 @@ function QuotesTab() {
           <p className="text-gold-300/80 text-sm mt-1 relative z-10">{todayQuote.reference}</p>
         )}
       </div>
-
-      <div>
-        <h3 className="font-display text-xl text-center text-navy-900 mb-4">Previous Days</h3>
-        <div className="space-y-3">
-          {recentQuotes.map((quote, index) => {
-            const date = new Date();
-            date.setDate(date.getDate() - (index + 1));
-            return (
-              <div key={quote.id} className="card p-4 border-l-4 border-gold-500">
-                <p className="text-xs text-gray-500 mb-2">
-                  {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                </p>
-                <p className="font-display text-gray-800 leading-relaxed">"{quote.text}"</p>
-                <p className="text-sm text-gray-500 mt-2">— {quote.source}</p>
-              </div>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 }
 
 // Reflections Tab
 function ReflectionsTab({ expandedReflection, setExpandedReflection }) {
-  const reflections = getAllReflections();
+  const [reflections, setReflections] = useState([]);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [formData, setFormData] = useState({
+    title: '',
+    content: '',
+    scriptureText: '',
+    scriptureReference: '',
+    tags: ''
+  });
+
+  // Load reflections on mount
+  useEffect(() => {
+    loadReflections();
+  }, []);
+
+  const loadReflections = async () => {
+    setIsLoading(true);
+    try {
+      // Try to get from Firebase first
+      const firebaseReflections = await getReflections();
+      if (firebaseReflections && firebaseReflections.length > 0) {
+        setReflections(firebaseReflections);
+      } else {
+        // Fall back to local data
+        setReflections(getAllReflections());
+      }
+    } catch (err) {
+      console.error('Error loading reflections:', err);
+      setReflections(getAllReflections());
+    }
+    setIsLoading(false);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSaving(true);
+    setError(null);
+
+    try {
+      const newReflection = {
+        title: formData.title,
+        content: formData.content,
+        excerpt: formData.content.substring(0, 150) + (formData.content.length > 150 ? '...' : ''),
+        date: new Date().toISOString().split('T')[0],
+        scripture: formData.scriptureText ? {
+          text: formData.scriptureText,
+          reference: formData.scriptureReference
+        } : null,
+        tags: formData.tags ? formData.tags.split(',').map(t => t.trim()).filter(t => t) : []
+      };
+
+      if (isFirebaseConfigured()) {
+        await addReflection(newReflection);
+        await loadReflections();
+      } else {
+        // For local-only mode, add to local state with a generated ID
+        const localReflection = {
+          ...newReflection,
+          id: Date.now()
+        };
+        setReflections(prev => [localReflection, ...prev]);
+      }
+
+      // Reset form
+      setFormData({
+        title: '',
+        content: '',
+        scriptureText: '',
+        scriptureReference: '',
+        tags: ''
+      });
+      setShowAddForm(false);
+    } catch (err) {
+      console.error('Error saving reflection:', err);
+      setError('Failed to save reflection. Please try again.');
+    }
+    setIsSaving(false);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="animate-fade-in flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-gold-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -369,6 +452,112 @@ function ReflectionsTab({ expandedReflection, setExpandedReflection }) {
         <p className="text-gray-500">Faith journeys and spiritual insights</p>
       </div>
 
+      {/* Add Reflection Button */}
+      <button
+        onClick={() => setShowAddForm(!showAddForm)}
+        className="w-full btn-primary flex items-center justify-center gap-2 py-3"
+      >
+        <Plus size={20} />
+        <span>{showAddForm ? 'Cancel' : 'Add New Reflection'}</span>
+      </button>
+
+      {/* Add Reflection Form */}
+      {showAddForm && (
+        <form onSubmit={handleSubmit} className="card p-5 md:p-6 space-y-4">
+          <h3 className="font-display text-lg font-semibold text-navy-900 mb-4">New Reflection</h3>
+
+          {error && (
+            <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+
+          {!isFirebaseConfigured() && (
+            <div className="bg-amber-50 text-amber-700 p-3 rounded-lg text-sm">
+              Firebase is not configured. Reflections will only be saved locally in this session.
+              See src/firebase.js to set up Firebase for persistent storage.
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+            <input
+              type="text"
+              required
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              className="w-full px-4 py-2 border border-cream-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+              placeholder="Enter a title for your reflection"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Content *</label>
+            <textarea
+              required
+              rows={6}
+              value={formData.content}
+              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+              className="w-full px-4 py-2 border border-cream-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-transparent resize-none"
+              placeholder="Write your reflection here. Use double line breaks to separate paragraphs."
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Scripture Quote (optional)</label>
+              <input
+                type="text"
+                value={formData.scriptureText}
+                onChange={(e) => setFormData({ ...formData, scriptureText: e.target.value })}
+                className="w-full px-4 py-2 border border-cream-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                placeholder="e.g., The Lord is my shepherd"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Scripture Reference</label>
+              <input
+                type="text"
+                value={formData.scriptureReference}
+                onChange={(e) => setFormData({ ...formData, scriptureReference: e.target.value })}
+                className="w-full px-4 py-2 border border-cream-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                placeholder="e.g., Psalm 23:1"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tags (optional)</label>
+            <input
+              type="text"
+              value={formData.tags}
+              onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+              className="w-full px-4 py-2 border border-cream-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+              placeholder="Comma-separated, e.g., faith, prayer, gratitude"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isSaving}
+            className="w-full btn-primary flex items-center justify-center gap-2 py-3 disabled:opacity-50"
+          >
+            {isSaving ? (
+              <>
+                <Loader2 size={20} className="animate-spin" />
+                <span>Saving...</span>
+              </>
+            ) : (
+              <>
+                <Save size={20} />
+                <span>Save Reflection</span>
+              </>
+            )}
+          </button>
+        </form>
+      )}
+
+      {/* Reflections List */}
       {reflections.map((reflection) => (
         <article key={reflection.id} className="card overflow-hidden">
           <div className="p-5 md:p-6">
@@ -386,7 +575,7 @@ function ReflectionsTab({ expandedReflection, setExpandedReflection }) {
                     <p key={idx} className="text-gray-700 leading-relaxed mb-4">{para}</p>
                   ))}
                 </div>
-                
+
                 {reflection.scripture && (
                   <div className="bg-cream-100 p-4 rounded-xl border-l-4 border-gold-500 my-4">
                     <p className="italic text-gray-700">"{reflection.scripture.text}"</p>
@@ -395,8 +584,8 @@ function ReflectionsTab({ expandedReflection, setExpandedReflection }) {
                     </p>
                   </div>
                 )}
-                
-                <button 
+
+                <button
                   onClick={() => setExpandedReflection(null)}
                   className="btn-secondary mt-4"
                 >
@@ -406,7 +595,7 @@ function ReflectionsTab({ expandedReflection, setExpandedReflection }) {
             ) : (
               <>
                 <p className="text-gray-600 leading-relaxed mb-4">{reflection.excerpt}</p>
-                <button 
+                <button
                   onClick={() => setExpandedReflection(reflection.id)}
                   className="btn-secondary"
                 >
@@ -415,7 +604,7 @@ function ReflectionsTab({ expandedReflection, setExpandedReflection }) {
               </>
             )}
 
-            {reflection.tags && (
+            {reflection.tags && reflection.tags.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-cream-200">
                 {reflection.tags.map((tag, idx) => (
                   <span key={idx} className="text-xs px-3 py-1 bg-cream-100 text-gray-500 rounded-full">
@@ -427,6 +616,12 @@ function ReflectionsTab({ expandedReflection, setExpandedReflection }) {
           </div>
         </article>
       ))}
+
+      {reflections.length === 0 && (
+        <div className="text-center py-8 text-gray-500">
+          <p>No reflections yet. Add your first reflection above!</p>
+        </div>
+      )}
     </div>
   );
 }
